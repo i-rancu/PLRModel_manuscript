@@ -1,0 +1,172 @@
+---
+title: "Manuscript_PLRModelCode"
+author: "Isabel Rancu"
+date: "2025-04-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This R Markdown file contains code used to run analyses discussed in our mansucript. Please note that the following code outlines methods unique to our paper. All functions used to generate the pairwise data and subsequent logistic regression analyses are outlined in the original methods paper published by Sustivasri et al., 2024. Here, we have included the code that specifies our modified sampling method and outline a general procedure for recreating our analyses. We provide the code outlining the method for our main analysis group (SNP ~ 40), but note that this method can be extended to our SNP~20 and SNP~80 groups. 
+
+Please note that due to data agreement policy, we are unable to provide users with our complete metadata as they contain PHI. These data can be made available upon request. 
+
+## Data Loading and Cleaning
+
+```{r}
+library(tidyverse)
+library(caret)
+library(lr2cluster)
+library(ggplot2)
+
+dt <- read.csv() #load original data
+
+#Clean metadata and isolate specific predictor variables; ensure there are no NAs
+MoldovaData_clean <- dt %>%
+  filter(firstSpecimen == 1)  %>%
+  filter(!is.na(Lineage)) %>% 
+  filter (!is.na(gender), !is.na(urban), !is.na(age), !is.na(homeless), !is.na(transnistria), !is.na(previouslyPrisoner)) %>% 
+   mutate(cluster = paste0("X", cluster),
+         cluster1 = cluster) %>% 
+  add_count(cluster)
+```
+
+## Cluster Membership Specification 
+
+```{r}
+######## METHOD 1 : clusters n > 2 ONLY #########
+#filters to only contain clusters with more than 2 members; ensures that these are individuals with cluster assignment
+MoldovaData_clean$cluster<-as.character(MoldovaData_clean$cluster)
+twomem <- as.data.frame(table(MoldovaData_clean$cluster)) %>% filter(Freq > 2) %>% pull(Var1)
+MoldovaData_clean_justclus <- MoldovaData_clean %>% 
+  filter(cluster != "XNA") %>% 
+  filter(cluster %in% twomem)
+
+# fit PLR
+model_fit <- lr2cluster::plr(formula = cluster ~  gender + urban + age  + homeless + transnistria + previouslyPrisoner + lat + long ,
+                             data = MoldovaData_clean_justclus) #intera
+summary(model_fit)
+
+######## METHOD 2: include unclusted (anyone n < 3) along with clustered ########
+# generate data frame to only have individuals in clusters n > 2 considered clustered. 
+unclus_temp <- MoldovaData_clean %>% add_count(cluster) %>% mutate(cluster = ifelse(n == "1" | n == "2", "XNA", cluster))
+
+# modify df to rename each unclustered individual to a unique cluster assignment that does not exist 
+unclus_df <- unclus_temp %>% 
+  filter(cluster == "XNA") %>% 
+  mutate(cluster = sample(1000:2000, length(cluster), replace = F ),
+         cluster = paste0("X", cluster))
+MoldovaData_clean_unclus2 <- bind_rows(unclus_temp, unclus_df)
+MoldovaData_clean_unclus2 <- MoldovaData_clean_unclus2 %>% filter(cluster !="XNA")
+
+
+######## METHOD 3: include unclustered (anyone n < 10) along with clustered ########
+# generate data frame to only have individuals in clusters n >2 considered clustered. 
+unclus9_temp <- MoldovaData_clean %>% mutate(cluster = ifelse(n < 10, "XNA", cluster))
+
+# modify df to rename each unclustered individual to a unique cluster assignment that does not exist 
+unclus9_df <- unclus9_temp %>% 
+  filter(cluster == "XNA") %>% 
+  mutate(cluster = sample(1000:3000, length(cluster), replace = F ),
+         cluster = paste0("X", cluster))
+MoldovaData_clean_unclus9 <- bind_rows(unclus9_temp, unclus9_df)
+MoldovaData_clean_unclus9 <- MoldovaData_clean_unclus9 %>% filter(cluster !="XNA")
+```
+
+
+## Assigning Cluster Function 
+```{r}
+## we only care that those in a cluster are not entirely in a test set
+## create a vector that has only the true cluster membership options
+library(gtools)
+## create group assignments (partition data into 10 random test sets)
+assgn_groups <- function(x){
+  temp <- x
+  temp$ID <- 1:length(temp$gender)
+  perms <- permute(temp$ID)
+  temp$group <- cut(perms, 10, labels = 1:10)
+  return(temp)
+}
+
+assign_output_justclus <- assgn_groups(MoldovaData_clean_justclus)
+assign_output_unclus2 <- assgn_groups(MoldovaData_clean_unclus2)
+assign_output_unclus9 <- assgn_groups(MoldovaData_clean_unclus9)
+
+## create function that checks if the group count for any cluster
+## is the same as cluster size. return TRUE if matches, FALSE if no matches 
+clusverif <- function(x, size){
+  ## create a vector that has only the true cluster membership options for n > K
+  x$cluster<-as.character(x$cluster)
+  mem <- as.data.frame(table(x$cluster)) %>% filter(Freq>size) %>% pull(Var1)
+  clustered_subset_dt <- x %>% 
+    filter(cluster %in% mem)
+  
+  # obtain the frequency of each cluster in each group 
+  cluster_count_grp <- clustered_subset_dt %>% 
+    group_by(cluster, group) %>% 
+    tally()
+  # obtain the number of size of each cluster
+  cluster_size <- clustered_subset_dt %>% 
+    group_by(cluster) %>% 
+    tally()
+  # for all clusters in the df cluster
+  for(cluster in unique(clustered_subset_dt$cluster)){
+    total_count <- cluster_size %>% 
+      filter(cluster == cluster) %>% 
+      pull(n)
+    group_freq <- cluster_count_grp %>% #pulls number of rows a matrix, filtered by cluster, has. Corresponds to how many groups this cluster appears in 
+      filter(cluster == cluster) %>% 
+      count() %>% 
+      pull(n)
+  }
+  print(data.frame(unique(clustered_subset_dt$cluster), total_count, group_freq))
+  
+  if(any(group_freq == 1)){
+    return(TRUE)
+  }
+  else{
+    return(FALSE)
+  }
+}
+
+clusverif_check_justclus <- clusverif(assign_output_justclus, 2) 
+clusverif_check_unclus2 <- clusverif(assign_output_unclus2, 2)
+clusverif_check_unclus9 <- clusverif(assign_output_unclus9, 9)
+```
+
+## Example Iterative Model Test/Training 
+This code is used to iterative between the test subsets generated and fit the PLR model. For more details on model fitting and specification, please see the original publication by Sustivasari et al., 2024. 
+```{r}
+dt <-assign_output_justclus
+for (i in 1:10){
+  testdt <- dt %>% filter(group==i)
+  traindt <- dt %>% filter(group!=i)
+  
+  assgn_plr <- clusterPLR(formula = cluster ~  gender + urban + age  + homeless + transnistria + previouslyPrisoner + lat + long ,
+                          data = traindt,
+                          newdata = testdt, 
+                          threshold = NULL, 
+                          nbest = 1)
+  acc_modelPLR1[i] <-acc(obj = assgn_plr, true.cluster = testdt$cluster)
+  assgn_plr <- clusterPLR(formula = cluster ~ gender + urban + age + homeless + transnistria + previouslyPrisoner + lat + long ,
+                          data = traindt,
+                          newdata = testdt, 
+                          threshold = NULL, 
+                          nbest = 3)
+  acc_modelPLR3[i] <-acc(obj = assgn_plr, true.cluster = testdt$cluster)
+  
+  assgn_ran <- clusterRandom((traindt$cluster), N = length(testdt$cluster), threshold = NULL, nbest = 1)
+  acc(obj= assgn_ran, true.cluster = testdt$cluster)
+  acc_modelRAN1[i]<-acc(obj= assgn_ran, true.cluster = testdt$cluster)
+  
+  assgn_ran <- clusterRandom((traindt$cluster), N = length(testdt$cluster), threshold = NULL, nbest = 3)
+  acc(obj= assgn_ran, true.cluster = testdt$cluster)
+  acc_modelRAN3[i]<-acc(obj= assgn_ran, true.cluster = testdt$cluster)
+  
+  print(length(acc_modelPLR1))
+}
+
+```
+
