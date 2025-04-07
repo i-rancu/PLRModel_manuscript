@@ -23,7 +23,7 @@ library(ggplot2)
 
 dt <- read.csv() #load original data
 
-#Clean metadata and isolate specific predictor variables; ensure there are no NAs
+#Clean metadata and isolate specific predictor variables
 MoldovaData_clean <- dt %>%
   filter(firstSpecimen == 1)  %>%
   filter(!is.na(Lineage)) %>% 
