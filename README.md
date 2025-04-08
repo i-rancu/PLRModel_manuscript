@@ -1,11 +1,11 @@
 ## **Pairwise Logistic Regression Application in Moldova**
 This repository contains code and data to recreate the findings from our manuscript (under review at Access Microbiology) that explores cluster memebership of unsequenced strains in the Republic of Moldova:
 
-Rancu, I. et al. Classification of unsequenced Mycobacterium tuberculosis strains in a high-burden setting using a pairwise logistic regression approach. Access Microbiol. (2024) doi:10.1099/acmi.0.000964.v1.
+*Rancu, I. et al. Classification of unsequenced Mycobacterium tuberculosis strains in a high-burden setting using a pairwise logistic regression approach. Access Microbiol. (2024) doi:10.1099/acmi.0.000964.v1.*
 
 Please note that details of model construction and package implementation for our analyses can be found in the original methods publication: 
 
-Susvitasari, K. et al. Epidemiological cluster identification using multiple data sources: an approach using logistic regression. Microb. Genomics 9, 000929 (2023).
+*Susvitasari, K. et al. Epidemiological cluster identification using multiple data sources: an approach using logistic regression. Microb. Genomics 9, 000929 (2023).*
 
 ## **Folder Structure** 
 The folder contains two files: 
