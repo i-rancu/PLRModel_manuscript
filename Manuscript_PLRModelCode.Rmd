@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This R Markdown file contains code used to run analyses discussed in our mansucript. Please note that the following code outlines methods unique to our paper. All functions used to generate the pairwise data and subsequent logistic regression analyses are outlined in the original methods paper published by Sustivasri et al., 2024. Here, we have included the code that specifies our modified sampling method and outline a general procedure for recreating our analyses. We provide the code outlining the method for our main analysis group (SNP ~ 40), but note that this method can be extended to our SNP ~ 20 and SNP ~ 80 groups. 
+This R Markdown file contains code used to run analyses discussed in our manuscript. Please note that the following code outlines methods used in our analyses but does not contain a comprehensive breakdown as that can be found in the original methods publication. All functions used to generate the pairwise data and subsequent logistic regression analyses are outlined in the original methods paper published by Susvitasari et al., 2024. Here, we have included the code that specifies our methods and outlines a general procedure for recreating our analyses. We provide the code for our main analysis group (SNP ~ 40), but note that this method can be extended to our SNP ~ 20 and SNP ~ 80 groups. 
 
-Please note that due to data agreement policy, we are unable to provide users with our complete metadata as they contain PHI. These data can be made available upon request. 
+Please note that due to data agreement policy, we are unable to provide users with our complete, non-pairwise metadata as they contain PHI. We have included our pairwise data on the GitHub folder as a way to demonstrate how these data are implemented in the model. If you are recreating these analyses, please import non-pairwise data, as the lr2cluster package specifies. For detailed methods implementation, please view the original publication by Susvitasari et al., 2024.
 
 ## Data Loading and Cleaning
 
